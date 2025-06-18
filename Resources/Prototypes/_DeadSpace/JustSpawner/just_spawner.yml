@@ -1,0 +1,70 @@
+- type: entity
+  abstract: true
+  parent: MarkerBase
+  id: JustSpawnerBase
+  name: just-spawner spawn point
+  categories: [ Spawner, JustSpawner ]
+  components:
+  - type: JustSpawner
+    jobPrototype: Assistant
+  - type: UserInterface
+    interfaces:
+      enum.JustSpawnerUiKey.Key:
+        type: JustSpawnerBUI
+  - type: Sprite
+    layers:
+    - state: timed
+    - sprite: Mobs/Species/Human/parts.rsi
+      state: full
+
+- type: entity
+  abstract: true
+  parent: JustSpawnerBase
+  id: JustSpawnerGhostBase
+  components:
+    - type: GhostTakeoverAvailable
+    - type: GhostRole
+      raffle:
+        settings: short
+      allowAdminTakeover: true
+      name: Just Spawner
+      description: Spawns a character.
+
+- type: entity
+  parent: JustSpawnerGhostBase
+  id: JSAsisstant
+  name: Ассистент
+  components:
+  - type: GhostRole
+    name: Ассистент
+    description: Вы ассистент.
+  - type: JustSpawner
+    jobPrototype: Passenger
+
+- type: entity
+  parent: JustSpawnerBase
+  id: JSCentCommRepresentative
+  name: Представитель ЦК
+  components:
+  - type: JustSpawner
+    forceRandom: false
+    jobPrototype: CentralCommandOfficial
+    allowedSpecies:
+      - Human
+
+- type: entity
+  parent: JustSpawnerGhostBase
+  id: JSCentCommBlueShield
+  name: Офицер "Синий Щит" ЦК
+  components:
+  - type: GhostRole
+    name: Офицер "Синий Щит"
+    description: Вы - Офицер корпуса "Синий Щит". Обеспечьте безопасность представителей Центрального Командования любой ценой.
+  - type: JustSpawner
+    forceRandom: false
+    jobPrototype: CentralCommandBlueShieldOfficer
+    allowedSpecies:
+      - Human
+    randomNameFirstParts:
+      - Сержант
+    randomNameSecondLocalized: NamesLastERT
