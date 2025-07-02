@@ -3,7 +3,7 @@
   parent: MarkerBase
   id: JustSpawnerBase
   name: just-spawner spawn point
-  categories: [ Spawner, JustSpawner ]
+  categories: [ Spawner ]
   components:
   - type: JustSpawner
     jobPrototype: Assistant

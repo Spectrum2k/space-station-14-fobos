@@ -32,6 +32,7 @@ public sealed class JustSpawnerSystem : EntitySystem
 
     public override void Initialize()
     {
+        base.Initialize();
         SubscribeLocalEvent<JustSpawnerComponent, MindAddedMessage>(OnMindAdded);
         SubscribeLocalEvent<JustSpawnerComponent, BoundUIOpenedEvent>(OnUiOpened);
         SubscribeLocalEvent<JustSpawnerComponent, JustSpawnerMessage>(OnUiMessage);
