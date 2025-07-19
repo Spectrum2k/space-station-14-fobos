@@ -6,21 +6,24 @@ using Content.Server.Ghost.Roles;
 using Content.Server.Mind;
 using Content.Server.Preferences.Managers;
 using Content.Server.Station.Systems;
-using Content.Shared.DeadSpace.JustSpawner;
+using Content.Shared.Clothing;
+using Content.Shared.DeadSpace.CustomizableHumanoidSpawner;
 using Content.Shared.Mind.Components;
+using Content.Shared.NPC.Systems;
 using Content.Shared.Preferences;
+using Content.Shared.Preferences.Loadouts;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
 using Robust.Server.GameObjects;
 using Robust.Shared.Player;
 using Content.Shared.Speech;
+using Content.Shared.Tag;
 
-namespace Content.Server.DeadSpace.JustSpawner;
+namespace Content.Server.DeadSpace.CustomizableHumanoidSpawner;
 
-public sealed class JustSpawnerSystem : EntitySystem
+public sealed class CustomizableHumanoidSpawnerSystem : EntitySystem
 {
     [Dependency] private readonly TransformSystem _transform = default!;
-    [Dependency] private readonly StationSystem _stations = default!;
     [Dependency] private readonly StationSpawningSystem _spawning = default!;
     [Dependency] private readonly MindSystem _mind = default!;
     [Dependency] private readonly IServerPreferencesManager _prefs = default!;
@@ -29,17 +32,19 @@ public sealed class JustSpawnerSystem : EntitySystem
     [Dependency] private readonly SpeechSystem _speech = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
+    [Dependency] private readonly TagSystem _tagSystem = default!;
+    [Dependency] private readonly NpcFactionSystem _factionSystem = default!;
 
     public override void Initialize()
     {
         base.Initialize();
-        SubscribeLocalEvent<JustSpawnerComponent, MindAddedMessage>(OnMindAdded);
-        SubscribeLocalEvent<JustSpawnerComponent, BoundUIOpenedEvent>(OnUiOpened);
-        SubscribeLocalEvent<JustSpawnerComponent, JustSpawnerMessage>(OnUiMessage);
-        SubscribeLocalEvent<JustSpawnerComponent, TakeGhostRoleEvent>(OnTakeGhostRole);
+        SubscribeLocalEvent<CustomizableHumanoidSpawnerComponent, MindAddedMessage>(OnMindAdded);
+        SubscribeLocalEvent<CustomizableHumanoidSpawnerComponent, BoundUIOpenedEvent>(OnUiOpened);
+        SubscribeLocalEvent<CustomizableHumanoidSpawnerComponent, CustomizableHumanoidSpawnerMessage>(OnUiMessage);
+        SubscribeLocalEvent<CustomizableHumanoidSpawnerComponent, TakeGhostRoleEvent>(OnTakeGhostRole);
     }
 
-    private void OnMindAdded(EntityUid uid, JustSpawnerComponent comp, MindAddedMessage args)
+    private void OnMindAdded(EntityUid uid, CustomizableHumanoidSpawnerComponent comp, MindAddedMessage args)
     {
         if (TryComp(uid, out GhostRoleComponent? ghost))
             _ghostRole.UnregisterGhostRole((uid, ghost));
@@ -64,19 +69,25 @@ public sealed class JustSpawnerSystem : EntitySystem
             return;
         }
 
-        _ui.OpenUi(uid, JustSpawnerUiKey.Key, actor.PlayerSession);
+        _ui.OpenUi(uid, CustomizableHumanoidSpawnerUiKey.Key, actor.PlayerSession);
     }
 
-    private void OnUiOpened(EntityUid uid, JustSpawnerComponent comp, BoundUIOpenedEvent args)
+    private void OnUiOpened(EntityUid uid, CustomizableHumanoidSpawnerComponent comp, BoundUIOpenedEvent args)
     {
         if (!TryComp<ActorComponent>(args.Actor, out var actor))
             return;
 
-        var state = new JustSpawnerBuiState(GetAvailableCharacters(actor, comp), !TryGetRandomName(comp, out _));
-        _ui.SetUiState(uid, JustSpawnerUiKey.Key, state);
+        var isRandomizedName = TryGetRandomName(comp, out var randomizedName);
+
+        var state = new CustomizableHumanoidSpawnerBuiState(
+            GetAvailableCharacters(actor, comp),
+            !isRandomizedName,
+            randomizedName);
+
+        _ui.SetUiState(uid, CustomizableHumanoidSpawnerUiKey.Key, state);
     }
 
-    private void OnUiMessage(EntityUid uid, JustSpawnerComponent comp, JustSpawnerMessage msg)
+    private void OnUiMessage(EntityUid uid, CustomizableHumanoidSpawnerComponent comp, CustomizableHumanoidSpawnerMessage msg)
     {
         if (!TryComp<ActorComponent>(uid, out var actor))
             return;
@@ -93,7 +104,7 @@ public sealed class JustSpawnerSystem : EntitySystem
     }
 
     private void Spawn(EntityUid uid,
-        JustSpawnerComponent comp,
+        CustomizableHumanoidSpawnerComponent comp,
         ActorComponent actor,
         bool isRandomCharacter,
         int characterIndex,
@@ -117,33 +128,36 @@ public sealed class JustSpawnerSystem : EntitySystem
             }
             else
             {
-                var species = _random.Pick(comp.AllowedSpecies);
-                profile = HumanoidCharacterProfile.RandomWithSpecies(species);
+                profile = HumanoidCharacterProfile.RandomWithSpecies(_random.Pick(comp.AllowedSpecies));
             }
+
+            if (TryGetRandomName(comp, out var randomName))
+                profile = profile.WithName(randomName);
         }
         else
         {
             var prefs = _prefs.GetPreferences(actor.PlayerSession.UserId);
-            profile = (HumanoidCharacterProfile)prefs.GetProfile(characterIndex);
-
-            if (useCustomName)
-                profile = profile.WithName(customName);
+            profile = (HumanoidCharacterProfile) prefs.GetProfile(characterIndex);
+            profile = profile.WithName(customName);
 
             if (useCustomDescription)
                 profile = profile.WithFlavorText(customDescription);
         }
 
-        if (TryGetRandomName(comp, out var randomName))
-            profile = profile.WithName(randomName);
+        var newEntity = _spawning.SpawnPlayerMob(coords.Value, comp.JobPrototype, profile, null);
 
-        var station = _stations.GetOwningStation(uid);
-        var newEntity = _spawning.SpawnPlayerMob(coords.Value, comp.JobPrototype, profile, station);
+        if (comp.Tags != null)
+            _tagSystem.AddTags(newEntity, comp.Tags);
+
+        if (comp.Factions != null)
+            _factionSystem.AddFactions(newEntity, comp.Factions);
+
         _mind.TransferTo(mindId, newEntity, true, mind: mindComp);
 
         QueueDel(uid);
     }
 
-    private void OnTakeGhostRole(EntityUid uid, JustSpawnerComponent comp, ref TakeGhostRoleEvent args)
+    private void OnTakeGhostRole(EntityUid uid, CustomizableHumanoidSpawnerComponent comp, ref TakeGhostRoleEvent args)
     {
         if (args.TookRole)
             return;
@@ -156,21 +170,19 @@ public sealed class JustSpawnerSystem : EntitySystem
         _mind.ControlMob(args.Player.UserId, uid);
     }
 
-    private List<JustSpawnerCharacterInfo> GetAvailableCharacters(ActorComponent actor, JustSpawnerComponent comp)
+    private List<CustomizableHumanoidSpawnerCharacterInfo> GetAvailableCharacters(ActorComponent actor, CustomizableHumanoidSpawnerComponent comp)
     {
-        var userId = actor.PlayerSession.UserId;
-        var prefs = _prefs.GetPreferences(userId);
-        var characters = new List<JustSpawnerCharacterInfo>();
+        var prefs = _prefs.GetPreferences(actor.PlayerSession.UserId);
+        var characters = new List<CustomizableHumanoidSpawnerCharacterInfo>();
+
         foreach (var (index, profile) in prefs.Characters)
         {
-            if (profile is not HumanoidCharacterProfile humanoid)
-                continue;
-
-            if (!comp.AllowedSpecies.Contains(humanoid.Species))
+            if (profile is not HumanoidCharacterProfile humanoid ||
+                !comp.AllowedSpecies.Contains(humanoid.Species) && comp.AllowedSpecies.Count > 0)
                 continue;
 
             var flavor = humanoid.FlavorText;
-            characters.Add(new JustSpawnerCharacterInfo(
+            characters.Add(new CustomizableHumanoidSpawnerCharacterInfo(
                 humanoid.Name,
                 flavor,
                 humanoid.Species,
@@ -181,7 +193,7 @@ public sealed class JustSpawnerSystem : EntitySystem
         return characters;
     }
 
-    private bool TryGetRandomName(JustSpawnerComponent comp, [NotNullWhen(true)] out string? name)
+    private bool TryGetRandomName(CustomizableHumanoidSpawnerComponent comp, [NotNullWhen(true)] out string? name)
     {
         var firstPart = TryGetRandomNameFirst(comp);
         var secondsPart = TryGetRandomNameSecond(comp);
@@ -196,11 +208,8 @@ public sealed class JustSpawnerSystem : EntitySystem
         return true;
     }
 
-    private string? TryGetRandomNameFirst(JustSpawnerComponent comp)
+    private string? TryGetRandomNameFirst(CustomizableHumanoidSpawnerComponent comp)
     {
-        if (comp.RandomNameFirstParts.Count > 0)
-            return comp.RandomNameFirstParts[_random.Next(0, comp.RandomNameFirstParts.Count)];
-
         if (comp.RandomNameFirstDataset is not null)
             return _random.Pick(_prototypeManager.Index(comp.RandomNameFirstDataset.Value).Values);
 
@@ -210,11 +219,8 @@ public sealed class JustSpawnerSystem : EntitySystem
         return null;
     }
 
-    private string? TryGetRandomNameSecond(JustSpawnerComponent comp)
+    private string? TryGetRandomNameSecond(CustomizableHumanoidSpawnerComponent comp)
     {
-        if (comp.RandomNameSecondParts.Count > 0)
-            return comp.RandomNameSecondParts[_random.Next(0, comp.RandomNameSecondParts.Count)];
-
         if (comp.RandomNameSecondDataset is not null)
             return _random.Pick(_prototypeManager.Index(comp.RandomNameSecondDataset.Value).Values);
 

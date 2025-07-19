@@ -1,0 +1,31 @@
+
+- type: entity
+  parent: CustomizableSpawnerBase
+  id: CustomizableSpawnerCentralCommandOfficer
+  name: Офицер ЦК
+  suffix: ОЦК
+  components:
+  - type: GhostRole
+    name: ghost-role-information-centcomofficer-name
+    description: ghost-role-information-centcomofficer-description
+    rules: ghost-role-information-centcom-personal-rules
+    requirements:
+      - !type:DepartmentTimeRequirement
+        department: Security
+        time: 108000 # 30 hours
+    raffle:
+      settings: short
+  - type: CustomizableHumanoidSpawner
+    jobPrototype: CentralCommandOfficer
+    allowedSpecies:
+    - Human
+    - Shark
+    - Demon
+    - Vulpkanin
+
+- type: roleLoadout
+  id: JobCentralCommandOfficer
+  groups:
+  - GroupTankHarness
+  - Survival
+  - GroupSpeciesBreathTool

@@ -1,0 +1,21 @@
+
+- type: entity
+  parent: CustomizableSpawnerBase
+  id: CustomizableSpawnerCentralCommandSpecialOperationsOfficer
+  name: Офицер Специальных Операций
+  suffix: ОСО
+  components:
+  - type: CustomizableHumanoidSpawner
+    jobPrototype: CentralCommandSpecialOperationsOfficer
+    allowedSpecies:
+    - Human
+    - Shark
+    - Demon
+    - Vulpkanin
+
+- type: roleLoadout
+  id: JobCentralCommandSpecialOperationsOfficer
+  groups:
+  - GroupTankHarness
+  - Survival
+  - GroupSpeciesBreathTool

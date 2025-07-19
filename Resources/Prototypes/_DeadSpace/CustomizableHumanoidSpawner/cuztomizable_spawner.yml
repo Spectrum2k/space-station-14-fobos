@@ -1,0 +1,32 @@
+- type: entity
+  abstract: true
+  parent: MarkerBase
+  id: CustomizableSpawnerBase
+  name: customizable spawn point
+  categories: [ Spawner ]
+  components:
+  - type: CustomizableHumanoidSpawner
+    jobPrototype: Assistant
+  - type: UserInterface
+    interfaces:
+      enum.CustomizableHumanoidSpawnerUiKey.Key:
+        type: CustomizableHumanoidSpawnerBUI
+  - type: Sprite
+    layers:
+    - state: timed
+    - sprite: Mobs/Species/Human/parts.rsi
+      state: full
+
+- type: entity
+  parent: CustomizableSpawnerBase
+  id: CustomizableSpawnerAsisstant
+  name: Ассистент
+  components:
+  - type: GhostTakeoverAvailable
+  - type: GhostRole
+    name: Ассистент
+    description: Вы ассистент.
+    raffle:
+      settings: short
+  - type: CustomizableHumanoidSpawner
+    jobPrototype: Passenger

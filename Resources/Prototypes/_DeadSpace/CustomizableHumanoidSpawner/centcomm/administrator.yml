@@ -1,0 +1,14 @@
+
+- type: entity
+  parent: CustomizableSpawnerBase
+  id: CustomizableSpawnerCentralCommandAdministrator
+  name: Администратор ЦК
+  suffix: АЦК
+  components:
+  - type: CustomizableHumanoidSpawner
+    jobPrototype: CentralCommandAdministrator
+    allowedSpecies:
+    - Human
+    - Shark
+    - Demon
+    - Vulpkanin
